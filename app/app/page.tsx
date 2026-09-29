@@ -1,21 +1,51 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Alert } from "@/design-system/components/alert";
 import { Card } from "@/design-system/components/card";
 import { MetricCard } from "@/design-system/components/metric-card";
 import { StatusBadge } from "@/design-system/components/status-badge";
-import { getBenchmark, getCaughtExample, getDocumentRows } from "@/lib/escaneo/demo";
+import { extractFields } from "@/lib/escaneo/extract";
+import { validateFields } from "@/lib/escaneo/validate";
+import { getBenchmark } from "@/lib/escaneo/demo";
+import type { CleanFields, Field, ValidationResult } from "@/lib/escaneo/types";
 
 const BENCH = getBenchmark();
-const ROWS = getDocumentRows();
-const CAUGHT = getCaughtExample();
 
-function pct(v: number) {
-  return `${(v * 100).toFixed(0)}%`;
-}
+const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
+
+const FIELDS: Field[] = ["reference", "amount", "currency", "date", "account"];
+
+const FIELD_LABEL: Record<Field, string> = {
+  reference: "Referencia",
+  amount: "Importe",
+  currency: "Moneda",
+  date: "Fecha",
+  account: "Cuenta",
+};
+
+const INPUT_CLASS =
+  "rounded-[var(--radius-md)] border border-[var(--border)] bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60";
+
+const VALID_DOC = `reference REF-202442
+amount 1234.56
+currency USD
+date 2024-03-15
+account 400000123457`;
+
+type Result = { fields: CleanFields; verdict: ValidationResult };
 
 export default function AppPage() {
+  const [ocrText, setOcrText] = useState(VALID_DOC);
+  const [result, setResult] = useState<Result | null>(null);
+
+  function run() {
+    const fields = extractFields(ocrText);
+    const verdict = validateFields(fields);
+    setResult({ fields, verdict });
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-background/80 backdrop-blur-md">
@@ -80,87 +110,90 @@ export default function AppPage() {
           />
         </div>
 
-        {/* ── WORKED EXAMPLE ──────────────────── */}
+        {/* ── OCR PLAYGROUND ──────────────────── */}
         <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Error de OCR cazado por la validación</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Procesador en vivo</h2>
           <p className="text-sm text-muted-foreground mb-5">
-            El OCR leyó <code className="font-mono text-xs">5</code> como
-            <code className="font-mono text-xs"> S</code> en el importe. El extractor lo trae tal cual;
-            la validación de formato lo rechaza antes de que el dato corrupto llegue río abajo.
+            Pega un documento (un campo por línea: <code className="font-mono text-xs">reference</code>,{" "}
+            <code className="font-mono text-xs">amount</code>, <code className="font-mono text-xs">currency</code>,{" "}
+            <code className="font-mono text-xs">date</code>, <code className="font-mono text-xs">account</code>).
+            El extractor lee los campos y la validación cruzada (checksums + calendario) marca lo
+            corrupto. Pista: cambia un dígito por una letra — p. ej. <code className="font-mono text-xs">amount 1234.S6</code> — para
+            ver al validador cazarlo.
           </p>
-          <Card className="p-5">
-            <p className="text-sm font-semibold text-foreground mb-3">Documento {CAUGHT.id} · campo amount</p>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="font-mono text-sm text-foreground">OCR: {CAUGHT.ocr}</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="font-mono text-sm text-success">limpio: {CAUGHT.clean}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <StatusBadge tone="danger">rechazado</StatusBadge>
-              <span className="font-mono text-xs text-danger">{CAUGHT.reason}</span>
-            </div>
-          </Card>
-        </section>
 
-        {/* ── DOCUMENTS ───────────────────────── */}
-        <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Documentos escaneados</h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            {ROWS.length} documentos, 5 campos cada uno. Seis documentos llevan un error de OCR
-            inyectado (dígito↔letra, fecha imposible); la validación cruzada los marca todos.
-          </p>
-          <div className="overflow-x-auto rounded-[var(--radius-md)] shadow-[var(--shadow-card)] bg-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--gray-50)]">
-                  <th scope="col" className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Doc</th>
-                  <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">reference</th>
-                  <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">amount</th>
-                  <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">currency</th>
-                  <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">date</th>
-                  <th scope="col" className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">account</th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {ROWS.map((r) => {
-                  const cell = (field: keyof typeof r.extracted) => {
-                    const value = r.extracted[field] as string;
-                    const corrupt = value !== (r.clean[field] as string);
-                    return corrupt ? (
-                      <span className="text-danger font-semibold">{value}</span>
-                    ) : (
-                      <span className="text-muted-foreground">{value}</span>
-                    );
-                  };
+          <Card className="p-5">
+            <textarea
+              value={ocrText}
+              onChange={(e) => setOcrText(e.target.value)}
+              rows={6}
+              className={`${INPUT_CLASS} w-full font-mono`}
+            />
+            <button
+              onClick={run}
+              className="mt-4 w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors"
+            >
+              Procesar documento
+            </button>
+          </Card>
+
+          {result && (
+            <Card className="mt-4 p-5">
+              <div className="flex items-center gap-3 mb-4">
+                {result.verdict.ok ? (
+                  <StatusBadge tone="success" dot>válido</StatusBadge>
+                ) : (
+                  <StatusBadge tone="danger" dot>rechazado</StatusBadge>
+                )}
+                <span className="text-sm text-muted-foreground">
+                  {result.verdict.ok
+                    ? "Todos los campos pasan la validación cruzada."
+                    : `${result.verdict.violations.length} violación${result.verdict.violations.length === 1 ? "" : "es"}.`}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {FIELDS.map((f) => {
+                  const violated = result.verdict.violations.filter((v) => v.field === f);
                   return (
-                    <tr key={r.id}>
-                      <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{r.id}</td>
-                      <td className="px-3 py-3 font-mono text-xs">{cell("reference")}</td>
-                      <td className="px-3 py-3 font-mono text-xs">{cell("amount")}</td>
-                      <td className="px-3 py-3 font-mono text-xs">{cell("currency")}</td>
-                      <td className="px-3 py-3 font-mono text-xs">{cell("date")}</td>
-                      <td className="px-3 py-3 font-mono text-xs">{cell("account")}</td>
-                      <td className="px-4 py-3 text-right">
-                        {r.ok ? (
-                          <StatusBadge tone="success">ok</StatusBadge>
-                        ) : (
-                          <div className="flex flex-col items-end gap-1">
-                            <StatusBadge tone="danger">rechazado</StatusBadge>
-                            {r.violations.map((v) => (
-                              <span key={v.field} className="font-mono text-[10px] text-danger">
-                                {v.field}: {v.reason}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
+                    <div
+                      key={f}
+                      className="rounded-[var(--radius-md)] bg-muted/40 px-3 py-2.5"
+                    >
+                      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {FIELD_LABEL[f]}
+                      </p>
+                      <p
+                        className={`mt-0.5 font-mono text-sm ${
+                          violated.length > 0 ? "text-danger font-semibold" : "text-foreground"
+                        }`}
+                      >
+                        {result.fields[f] || "—"}
+                      </p>
+                      {violated.map((v) => (
+                        <p key={v.reason} className="mt-0.5 font-mono text-[10px] text-danger">
+                          {v.reason}
+                        </p>
+                      ))}
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+              </div>
+
+              {result.verdict.violations.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {result.verdict.violations.map((v) => (
+                    <span
+                      key={`${v.field}:${v.reason}`}
+                      className="rounded-full border border-danger/25 bg-danger/10 px-2.5 py-0.5 font-mono text-xs text-danger"
+                    >
+                      {v.field}: {v.reason}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
         </section>
 
         {/* ── NOTE ────────────────────────────── */}

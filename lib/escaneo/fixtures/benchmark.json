@@ -1,0 +1,11 @@
+{
+  "totalFields": 60,
+  "corruptFields": 6,
+  "correctFields": 54,
+  "rawAccuracy": 0.9,
+  "caught": 6,
+  "falsePositives": 0,
+  "recall": 1.0,
+  "effectiveAccuracy": 1.0,
+  "n": 12
+}

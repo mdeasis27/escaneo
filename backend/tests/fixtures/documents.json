@@ -1,0 +1,64 @@
+{
+  "documents": [
+    {
+      "id": "d01",
+      "ocrText": "reference REF-202442\namount 1234.56\ncurrency USD\ndate 2024-03-15\naccount 400000123457",
+      "clean": { "reference": "REF-202442", "amount": "1234.56", "currency": "USD", "date": "2024-03-15", "account": "400000123457" }
+    },
+    {
+      "id": "d02",
+      "ocrText": "reference REF-202453\namount 987.30\ncurrency EUR\ndate 2024-03-16\naccount 400000123465",
+      "clean": { "reference": "REF-202453", "amount": "987.30", "currency": "EUR", "date": "2024-03-16", "account": "400000123465" }
+    },
+    {
+      "id": "d03",
+      "ocrText": "reference REF-202464\namount 4520.00\ncurrency MXN\ndate 2024-03-17\naccount 400000123473",
+      "clean": { "reference": "REF-202464", "amount": "4520.00", "currency": "MXN", "date": "2024-03-17", "account": "400000123473" }
+    },
+    {
+      "id": "d04",
+      "ocrText": "reference REF-202475\namount 89.99\ncurrency USD\ndate 2024-03-18\naccount 400000123481",
+      "clean": { "reference": "REF-202475", "amount": "89.99", "currency": "USD", "date": "2024-03-18", "account": "400000123481" }
+    },
+    {
+      "id": "d05",
+      "ocrText": "reference REF-202486\namount 1500.25\ncurrency EUR\ndate 2024-03-19\naccount 400000123499",
+      "clean": { "reference": "REF-202486", "amount": "1500.25", "currency": "EUR", "date": "2024-03-19", "account": "400000123499" }
+    },
+    {
+      "id": "d06",
+      "ocrText": "reference REF-202497\namount 320.10\ncurrency USD\ndate 2024-03-20\naccount 400000123507",
+      "clean": { "reference": "REF-202497", "amount": "320.10", "currency": "USD", "date": "2024-03-20", "account": "400000123507" }
+    },
+    {
+      "id": "d07",
+      "ocrText": "reference REF-202509\namount 1234.S6\ncurrency USD\ndate 2024-03-21\naccount 400000123515",
+      "clean": { "reference": "REF-202509", "amount": "1234.56", "currency": "USD", "date": "2024-03-21", "account": "400000123515" }
+    },
+    {
+      "id": "d08",
+      "ocrText": "reference REF-202510\namount 76.50\ncurrency EUR\ndate 2024-03-22\naccount 40000012352I",
+      "clean": { "reference": "REF-202510", "amount": "76.50", "currency": "EUR", "date": "2024-03-22", "account": "400000123523" }
+    },
+    {
+      "id": "d09",
+      "ocrText": "reference REF-202521\namount 2200.00\ncurrency USD\ndate 2024-13-23\naccount 400000123531",
+      "clean": { "reference": "REF-202521", "amount": "2200.00", "currency": "USD", "date": "2024-03-23", "account": "400000123531" }
+    },
+    {
+      "id": "d10",
+      "ocrText": "reference REF-20253S\namount 555.55\ncurrency MXN\ndate 2024-03-24\naccount 400000123549",
+      "clean": { "reference": "REF-202532", "amount": "555.55", "currency": "MXN", "date": "2024-03-24", "account": "400000123549" }
+    },
+    {
+      "id": "d11",
+      "ocrText": "reference REF-202543\namount 987.3O\ncurrency USD\ndate 2024-03-25\naccount 400000123556",
+      "clean": { "reference": "REF-202543", "amount": "987.30", "currency": "USD", "date": "2024-03-25", "account": "400000123556" }
+    },
+    {
+      "id": "d12",
+      "ocrText": "reference REF-202554\namount 410.20\ncurrency EUR\ndate 2024-03-26\naccount 40000012356G",
+      "clean": { "reference": "REF-202554", "amount": "410.20", "currency": "EUR", "date": "2024-03-26", "account": "400000123564" }
+    }
+  ]
+}

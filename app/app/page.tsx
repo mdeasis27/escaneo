@@ -1,19 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert } from "@/design-system/components/alert";
 import { Card } from "@/design-system/components/card";
-import { MetricCard } from "@/design-system/components/metric-card";
 import { StatusBadge } from "@/design-system/components/status-badge";
-import { extractFields } from "@/lib/escaneo/extract";
-import { validateFields } from "@/lib/escaneo/validate";
-import { getBenchmark } from "@/lib/escaneo/demo";
-import type { CleanFields, Field, ValidationResult } from "@/lib/escaneo/types";
+import type { Field, FieldViolation } from "@/lib/escaneo/types";
 
-const BENCH = getBenchmark();
+interface ProcessResult {
+  fields?: Record<Field, string>;
+  ok?: boolean;
+  violations?: FieldViolation[];
+  error?: string;
+}
 
-const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
+interface HistoryItem {
+  id: number;
+  valid: boolean;
+  violations: string;
+  created_at: string;
+}
 
 const FIELDS: Field[] = ["reference", "amount", "currency", "date", "account"];
 
@@ -25,26 +31,64 @@ const FIELD_LABEL: Record<Field, string> = {
   account: "Cuenta",
 };
 
-const INPUT_CLASS =
-  "rounded-[var(--radius-md)] border border-[var(--border)] bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60";
-
 const VALID_DOC = `reference REF-202442
 amount 1234.56
 currency USD
 date 2024-03-15
 account 400000123457`;
 
-type Result = { fields: CleanFields; verdict: ValidationResult };
+function parseViolations(raw: string): FieldViolation[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function AppPage() {
   const [ocrText, setOcrText] = useState(VALID_DOC);
-  const [result, setResult] = useState<Result | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ProcessResult | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  function run() {
-    const fields = extractFields(ocrText);
-    const verdict = validateFields(fields);
-    setResult({ fields, verdict });
+  async function run() {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ocrText }),
+      });
+      const data = await res.json();
+      setResult(data);
+      if (res.ok) loadHistory();
+    } catch (err) {
+      setResult({ error: err instanceof Error ? err.message : "Error de red" });
+    } finally {
+      setLoading(false);
+    }
   }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch("/api/history");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.documents ?? []);
+      }
+    } catch {
+      /* history is best-effort */
+    }
+  }
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const violations = result?.violations ?? [];
+  const fields = result?.fields;
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,142 +118,137 @@ export default function AppPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <StatusBadge tone="info" dot className="px-3 py-1">
-              Demo mode
+            <StatusBadge tone="success" dot className="px-3 py-1">
+              Postgres en vivo
             </StatusBadge>
           </div>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-10">
-        {/* ── SUMMARY BAR ─────────────────────── */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <MetricCard
-            label="Accuracy cruda"
-            value={pct(BENCH.rawAccuracy)}
-            hint={`${BENCH.correctFields}/${BENCH.totalFields} campos`}
-            tone="warning"
-          />
-          <MetricCard
-            label="Errores cazados"
-            value={`${BENCH.caught}/${BENCH.corruptFields}`}
-            hint="recall de validación"
-            tone="success"
-          />
-          <MetricCard
-            label="Falsos positivos"
-            value={BENCH.falsePositives}
-            hint="campos limpios marcados"
-            tone="info"
-          />
-          <MetricCard
-            label="Accuracy efectiva"
-            value={pct(BENCH.effectiveAccuracy)}
-            hint="tras validación"
-            tone="success"
-          />
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        <div className="max-w-3xl">
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Procesa un documento OCR en vivo</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            Pega un documento (un campo por línea). El extractor lee los campos y la validación
+            cruzada (checksums + calendario) marca lo corrupto. Cada documento procesado se{" "}
+            <strong>persiste en Postgres</strong>. Pista: cambia un dígito por una letra — p. ej.{" "}
+            <code className="font-mono text-xs">amount 1234.S6</code> — para ver al validador cazarlo.
+          </p>
         </div>
 
-        {/* ── OCR PLAYGROUND ──────────────────── */}
-        <section>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-1">Procesador en vivo</h2>
-          <p className="text-sm text-muted-foreground mb-5">
-            Pega un documento (un campo por línea: <code className="font-mono text-xs">reference</code>,{" "}
-            <code className="font-mono text-xs">amount</code>, <code className="font-mono text-xs">currency</code>,{" "}
-            <code className="font-mono text-xs">date</code>, <code className="font-mono text-xs">account</code>).
-            El extractor lee los campos y la validación cruzada (checksums + calendario) marca lo
-            corrupto. Pista: cambia un dígito por una letra — p. ej. <code className="font-mono text-xs">amount 1234.S6</code> — para
-            ver al validador cazarlo.
-          </p>
+        <Card className="p-5">
+          <textarea
+            value={ocrText}
+            onChange={(e) => setOcrText(e.target.value)}
+            rows={6}
+            className="w-full rounded-[var(--radius-md)] border border-[var(--border)] bg-background px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
+          />
+          <button
+            onClick={run}
+            disabled={loading}
+            className="mt-4 w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors disabled:opacity-50"
+          >
+            {loading ? "Procesando…" : "Procesar documento"}
+          </button>
+        </Card>
 
-          <Card className="p-5">
-            <textarea
-              value={ocrText}
-              onChange={(e) => setOcrText(e.target.value)}
-              rows={6}
-              className={`${INPUT_CLASS} w-full font-mono`}
-            />
-            <button
-              onClick={run}
-              className="mt-4 w-full rounded-[var(--radius-md)] bg-accent px-4 py-2.5 text-sm font-medium text-[#ffffff] hover:bg-accent/90 transition-colors"
-            >
-              Procesar documento
-            </button>
-          </Card>
+        {result && (
+          <div className="space-y-4">
+            {result.error && (
+              <Alert tone="danger" title="No se pudo procesar">{result.error}</Alert>
+            )}
 
-          {result && (
-            <Card className="mt-4 p-5">
-              <div className="flex items-center gap-3 mb-4">
-                {result.verdict.ok ? (
-                  <StatusBadge tone="success" dot>válido</StatusBadge>
-                ) : (
-                  <StatusBadge tone="danger" dot>rechazado</StatusBadge>
-                )}
-                <span className="text-sm text-muted-foreground">
-                  {result.verdict.ok
-                    ? "Todos los campos pasan la validación cruzada."
-                    : `${result.verdict.violations.length} violación${result.verdict.violations.length === 1 ? "" : "es"}.`}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                {FIELDS.map((f) => {
-                  const violated = result.verdict.violations.filter((v) => v.field === f);
-                  return (
-                    <div
-                      key={f}
-                      className="rounded-[var(--radius-md)] bg-muted/40 px-3 py-2.5"
-                    >
-                      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {FIELD_LABEL[f]}
-                      </p>
-                      <p
-                        className={`mt-0.5 font-mono text-sm ${
-                          violated.length > 0 ? "text-danger font-semibold" : "text-foreground"
-                        }`}
-                      >
-                        {result.fields[f] || "—"}
-                      </p>
-                      {violated.map((v) => (
-                        <p key={v.reason} className="mt-0.5 font-mono text-[10px] text-danger">
-                          {v.reason}
-                        </p>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {result.verdict.violations.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {result.verdict.violations.map((v) => (
-                    <span
-                      key={`${v.field}:${v.reason}`}
-                      className="rounded-full border border-danger/25 bg-danger/10 px-2.5 py-0.5 font-mono text-xs text-danger"
-                    >
-                      {v.field}: {v.reason}
-                    </span>
-                  ))}
+            {!result.error && fields && (
+              <Card className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  {result.ok ? (
+                    <StatusBadge tone="success" dot>válido</StatusBadge>
+                  ) : (
+                    <StatusBadge tone="danger" dot>rechazado</StatusBadge>
+                  )}
+                  <span className="text-sm text-muted-foreground">
+                    {result.ok
+                      ? "Todos los campos pasan la validación cruzada."
+                      : `${violations.length} violación${violations.length === 1 ? "" : "es"}.`}
+                  </span>
                 </div>
-              )}
-            </Card>
-          )}
-        </section>
 
-        {/* ── NOTE ────────────────────────────── */}
-        <section>
-          <Alert tone="info" title="Validación cruzada = checksums, no solo formato">
-            Un formato regex caza un dígito convertido en letra, pero no un dígito cambiado por
-            otro. Por eso el account lleva checksum Luhn y el reference un check digit: una
-            corrupción que conserve el formato rompe el checksum. Esa es la capa que separa
-            &quot;lo detecté porque se ve raro&quot; de &quot;lo detecté porque no cuadra&quot;.
-          </Alert>
-        </section>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {FIELDS.map((f) => {
+                    const violated = violations.filter((v) => v.field === f);
+                    return (
+                      <div key={f} className="rounded-[var(--radius-md)] bg-muted/40 px-3 py-2.5">
+                        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {FIELD_LABEL[f]}
+                        </p>
+                        <p
+                          className={`mt-0.5 font-mono text-sm ${
+                            violated.length > 0 ? "text-danger font-semibold" : "text-foreground"
+                          }`}
+                        >
+                          {fields[f] || "—"}
+                        </p>
+                        {violated.map((v) => (
+                          <p key={v.reason} className="mt-0.5 font-mono text-[10px] text-danger">
+                            {v.reason}
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
 
-        <footer className="pt-8 border-t border-[var(--border)] flex items-center justify-between text-xs text-muted-foreground">
-          <span>Escaneo · Procesador multi-modal · Demo mode</span>
-          <a href="https://github.com/mdeasis27/escaneo" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors font-mono">GitHub</a>
-        </footer>
+                {violations.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {violations.map((v) => (
+                      <span
+                        key={`${v.field}:${v.reason}`}
+                        className="rounded-full border border-danger/25 bg-danger/10 px-2.5 py-0.5 font-mono text-xs text-danger"
+                      >
+                        {v.field}: {v.reason}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
+          </div>
+        )}
+
+        {history.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Historial de documentos (persistido en Postgres)</h3>
+            <div className="overflow-x-auto rounded-[var(--radius-md)] shadow-[var(--shadow-card)] bg-card">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--gray-50)]">
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estado</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Violaciones</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {history.map((h) => {
+                    const count = parseViolations(h.violations).length;
+                    return (
+                      <tr key={h.id}>
+                        <td className="px-4 py-2.5">
+                          <StatusBadge tone={h.valid ? "success" : "danger"} dot>
+                            {h.valid ? "válido" : "rechazado"}
+                          </StatusBadge>
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-foreground">{count}</td>
+                        <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">
+                          {new Date(h.created_at).toLocaleString("es-ES")}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

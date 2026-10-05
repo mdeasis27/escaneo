@@ -1,0 +1,53 @@
+{
+  "repository": "escaneo",
+  "scope": "Real React component with controlled locale; Next routes not tested.",
+  "checks": [
+    {
+      "locale": "en",
+      "scenarios": [
+        {
+          "preset": "Valid receipt\nChecks pass",
+          "outcome": "Hold for review\n\nA marked field remains unchanged for review."
+        },
+        {
+          "preset": "Broken account\nRequires review",
+          "outcome": "Hold for review\n\nA marked field remains unchanged for review."
+        }
+      ],
+      "localizedValidationError": "OCR text is required.",
+      "mobileNoOverflow": true,
+      "reducedMotion": true,
+      "keyboard": true,
+      "noRequests": true,
+      "sceneChangesWithScenario": true,
+      "editingClearsPresetAndTrace": true,
+      "resetRestoresFirstPreset": true,
+      "cancelControlPresent": true,
+      "presetRestoresAllInputs": true
+    },
+    {
+      "locale": "es",
+      "scenarios": [
+        {
+          "preset": "Recibo válido\nLas comprobaciones pasan",
+          "outcome": "Retener para revisión\n\nUn campo marcado permanece sin cambios para revisión."
+        },
+        {
+          "preset": "Cuenta dañada\nRequiere revisión",
+          "outcome": "Retener para revisión\n\nUn campo marcado permanece sin cambios para revisión."
+        }
+      ],
+      "localizedValidationError": "Introduce texto OCR para inspeccionar el documento.",
+      "mobileNoOverflow": true,
+      "reducedMotion": true,
+      "keyboard": true,
+      "noRequests": true,
+      "sceneChangesWithScenario": true,
+      "editingClearsPresetAndTrace": true,
+      "resetRestoresFirstPreset": true,
+      "cancelControlPresent": true,
+      "presetRestoresAllInputs": true
+    }
+  ],
+  "errors": []
+}

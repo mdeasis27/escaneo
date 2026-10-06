@@ -47,3 +47,16 @@ def benchmark(documents: list[dict]) -> dict:
         "effectiveAccuracy": _rate(correct_fields + caught, total_fields),
         "n": len(documents),
     }
+
+
+def document_outcomes(documents: list[dict], level: int | None = None) -> list[dict]:
+    """Per receipt at a check level: served, held, lost (broken but accepted) or false-hold."""
+    out = []
+    for doc in documents:
+        extracted = extract_fields(doc["ocrText"])
+        broken = any(extracted[field] != doc["clean"][field] for field in FIELDS)
+        verdict = validate_fields(extracted) if level is None else validate_fields(extracted, level)
+        held = not verdict["ok"]
+        status = ("held" if held else "lost") if broken else ("false-hold" if held else "served")
+        out.append({"id": doc["id"], "status": status})
+    return out

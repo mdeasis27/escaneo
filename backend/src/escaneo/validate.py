@@ -34,28 +34,40 @@ def valid_date(s: str) -> bool:
     return 1 <= d <= dim[mo - 1]
 
 
-def validate_fields(f: dict) -> dict:
-    violations: list[dict] = []
+CHECKS = ["format", "allowlist", "calendar", "check-digit", "luhn"]
 
-    if not re.fullmatch(r"REF-\d{6}", f["reference"]):
+
+def validate_fields(f: dict, level: int | None = None) -> dict:
+    """Checks switch on in CHECKS order as level rises from 0 (none) to 5 (all, the default)."""
+    if level is None:
+        level = len(CHECKS)
+
+    def on(check: str) -> bool:
+        return CHECKS.index(check) < level
+
+    violations: list[dict] = []
+    ref_ok = re.fullmatch(r"REF-\d{6}", f["reference"]) is not None
+
+    if on("format") and not ref_ok:
         violations.append({"field": "reference", "reason": "format"})
-    else:
+    elif on("check-digit") and ref_ok:
         digits = f["reference"][4:]
         if sum(int(d) for d in digits[:5]) % 10 != int(digits[5]):
             violations.append({"field": "reference", "reason": "check-digit"})
 
-    if not re.fullmatch(r"\d+\.\d{2}", f["amount"]):
+    if on("format") and not re.fullmatch(r"\d+\.\d{2}", f["amount"]):
         violations.append({"field": "amount", "reason": "format"})
 
-    if f["currency"] not in CURRENCIES:
+    if on("allowlist") and f["currency"] not in CURRENCIES:
         violations.append({"field": "currency", "reason": "allowlist"})
 
-    if not valid_date(f["date"]):
+    if on("calendar") and not valid_date(f["date"]):
         violations.append({"field": "date", "reason": "invalid"})
 
-    if not re.fullmatch(r"\d{12}", f["account"]):
+    account_ok = re.fullmatch(r"\d{12}", f["account"]) is not None
+    if on("format") and not account_ok:
         violations.append({"field": "account", "reason": "format"})
-    elif not luhn_valid(f["account"]):
+    elif on("luhn") and account_ok and not luhn_valid(f["account"]):
         violations.append({"field": "account", "reason": "checksum"})
 
     return {"ok": len(violations) == 0, "violations": violations}

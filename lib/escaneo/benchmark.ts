@@ -48,3 +48,15 @@ export function benchmark(documents: readonly Document[]): BenchmarkResult {
     n: documents.length,
   };
 }
+
+export type DocumentStatus = "served" | "held" | "lost" | "false-hold";
+
+/** Per receipt at a given check level: clean and accepted, broken and held, broken and accepted, or clean but held. */
+export function documentOutcomes(documents: readonly Document[], level?: number): { id: string; status: DocumentStatus }[] {
+  return documents.map((doc) => {
+    const extracted = extractFields(doc.ocrText);
+    const broken = FIELDS.some((field) => extracted[field] !== doc.clean[field]);
+    const held = !validateFields(extracted, level).ok;
+    return { id: doc.id, status: broken ? (held ? "held" : "lost") : held ? "false-hold" : "served" };
+  });
+}

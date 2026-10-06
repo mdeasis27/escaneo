@@ -61,3 +61,27 @@ def test_benchmark_matches_fixture():
 def test_validation_flags_exactly_the_corrupt_documents():
     corrupt_ids = [d["id"] for d in _docs() if not validate_fields(extract_fields(d["ocrText"]))["ok"]]
     assert corrupt_ids == ["d07", "d08", "d09", "d10", "d11", "d12"]
+
+
+def test_check_levels_match_the_shared_fixture():
+    from escaneo.benchmark import document_outcomes
+    from escaneo.validate import validate_fields
+
+    fixture = _load("benchmark.json")
+    docs = _load("documents.json")["documents"]
+    for level in range(6):
+        statuses = [o["status"] for o in document_outcomes(docs, level)]
+        assert statuses == fixture["outcomesByLevel"][str(level)]
+    assert validate_fields({"reference": "x", "amount": "x", "currency": "x", "date": "x", "account": "x"}, 0)["ok"]
+
+
+def test_validate_fields_treats_none_level_as_all_checks():
+    import json
+    from pathlib import Path
+    from escaneo.extract import extract_fields
+    from escaneo.validate import validate_fields
+
+    docs = json.loads((Path(__file__).parent / "fixtures" / "documents.json").read_text())
+    for d in docs["documents"] if isinstance(docs, dict) else docs:
+        fields = extract_fields(d["ocrText"] if "ocrText" in d else d["ocr_text"])
+        assert validate_fields(fields, None) == validate_fields(fields)

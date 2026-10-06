@@ -37,12 +37,16 @@ export function validDate(s: string): boolean {
   return d >= 1 && d <= dim[mo - 1];
 }
 
-export function validateFields(f: CleanFields): ValidationResult {
+/** Checks switch on in this order as `level` rises from 0 (none) to 5 (all, the default). */
+export const CHECKS = ["format", "allowlist", "calendar", "check-digit", "luhn"] as const;
+
+export function validateFields(f: CleanFields, level: number = CHECKS.length): ValidationResult {
+  const on = (check: (typeof CHECKS)[number]) => CHECKS.indexOf(check) < level;
   const violations: FieldViolation[] = [];
 
-  if (!/^REF-\d{6}$/.test(f.reference)) {
+  if (on("format") && !/^REF-\d{6}$/.test(f.reference)) {
     violations.push({ field: "reference", reason: "format" });
-  } else {
+  } else if (on("check-digit") && /^REF-\d{6}$/.test(f.reference)) {
     const digits = f.reference.slice(4);
     const sum = [...digits.slice(0, 5)].reduce((a, c) => a + Number(c), 0);
     if (sum % 10 !== Number(digits[5])) {
@@ -50,21 +54,21 @@ export function validateFields(f: CleanFields): ValidationResult {
     }
   }
 
-  if (!/^\d+\.\d{2}$/.test(f.amount)) {
+  if (on("format") && !/^\d+\.\d{2}$/.test(f.amount)) {
     violations.push({ field: "amount", reason: "format" });
   }
 
-  if (!CURRENCIES.has(f.currency)) {
+  if (on("allowlist") && !CURRENCIES.has(f.currency)) {
     violations.push({ field: "currency", reason: "allowlist" });
   }
 
-  if (!validDate(f.date)) {
+  if (on("calendar") && !validDate(f.date)) {
     violations.push({ field: "date", reason: "invalid" });
   }
 
-  if (!/^\d{12}$/.test(f.account)) {
+  if (on("format") && !/^\d{12}$/.test(f.account)) {
     violations.push({ field: "account", reason: "format" });
-  } else if (!luhnValid(f.account)) {
+  } else if (on("luhn") && /^\d{12}$/.test(f.account) && !luhnValid(f.account)) {
     violations.push({ field: "account", reason: "checksum" });
   }
 

@@ -73,3 +73,15 @@ def test_check_levels_match_the_shared_fixture():
         statuses = [o["status"] for o in document_outcomes(docs, level)]
         assert statuses == fixture["outcomesByLevel"][str(level)]
     assert validate_fields({"reference": "x", "amount": "x", "currency": "x", "date": "x", "account": "x"}, 0)["ok"]
+
+
+def test_validate_fields_treats_none_level_as_all_checks():
+    import json
+    from pathlib import Path
+    from escaneo.extract import extract_fields
+    from escaneo.validate import validate_fields
+
+    docs = json.loads((Path(__file__).parent / "fixtures" / "documents.json").read_text())
+    for d in docs["documents"] if isinstance(docs, dict) else docs:
+        fields = extract_fields(d["ocrText"] if "ocrText" in d else d["ocr_text"])
+        assert validate_fields(fields, None) == validate_fields(fields)

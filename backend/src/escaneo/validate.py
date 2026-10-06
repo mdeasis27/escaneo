@@ -37,8 +37,10 @@ def valid_date(s: str) -> bool:
 CHECKS = ["format", "allowlist", "calendar", "check-digit", "luhn"]
 
 
-def validate_fields(f: dict, level: int = len(CHECKS)) -> dict:
+def validate_fields(f: dict, level: int | None = None) -> dict:
     """Checks switch on in CHECKS order as level rises from 0 (none) to 5 (all, the default)."""
+    if level is None:
+        level = len(CHECKS)
 
     def on(check: str) -> bool:
         return CHECKS.index(check) < level

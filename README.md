@@ -1,86 +1,79 @@
-# Escaneo
+# OCR validation
 
-**Multi-modal processor** — a simulated OCR layer with deterministic errors, schema field
-extraction, and cross-validation (checksums) that catches OCR corruption before it flows
-downstream.
+[Español](README.es.md) · [Try the demo](https://escaneo-manueldeasis27-2515s-projects.vercel.app/en/app) · [Case study](https://manueldeasis.com/en/projects/escaneo) · [Source](https://github.com/mdeasis27/escaneo)
 
-> **Result:** raw extraction is **90%** field-accurate (54/60) because the OCR layer injects 6
-> errors. Cross-validation flags **6/6** corrupt fields (**100% recall, 0 false positives**) —
-> checksums catch a digit that *looks* fine but breaks the math — lifting effective accuracy to
-> **100%**.
+![Actual interactive local interface](docs/images/cover.png)
 
----
+Edit OCR text and introduce controlled corruptions to inspect extracted fields and checksums.
 
-## Result
+## Two situations to compare
 
-| Metric | Value |
-|---|---|
-| Fields (12 docs × 5) | 60 |
-| Raw field accuracy | **90%** (54 / 60) |
-| Injected OCR errors | 6 |
-| Validation recall | **100%** (6 / 6) |
-| False positives | **0** |
-| Effective accuracy (post-validation) | **100%** |
+**Valid receipt:** Valid account checksum All fields pass.
 
-The six corrupt fields are one each of the four "letter-for-digit" confusions (amount `5`→`S`,
-account `3`→`I`, reference `5`→`S`, amount `0`→`O`) plus two that keep the format but break the
-semantics: an impossible date (`2024-13-23`) and a checksum failure.
+![Valid receipt](docs/images/scenario-a.png)
 
----
+**Broken account:** Corrupted account The document is held.
+
+![Broken account](docs/images/scenario-b.png)
+
+## Business use case
+
+OCR errors can hide inside a plausible document.
+
+**Who uses it:** Operations reviewer.
+
+**The decision:** Accept or hold the document.
+
+Choose a receipt preset, inspect fields, and review checksum evidence.
+
+### Try the decision
+
+**Valid receipt:** Valid account checksum All fields pass.
+
+**Broken account:** Corrupted account The document is held.
+
+Choose a scenario, edit its controls and run the local computation. Step through the visual process or reveal all steps. Reset before comparing the second scenario.
+
+## How to try it
+
+Open `/en/app` (English, default) or `/es/app` (Spanish). Change the scenario inputs and run the computation. Inspect the resulting decision, evidence and computed trace. Playback reveals completed local steps; it does not measure a live model. Reset starts a new local scenario. Changing language resets the scenario; the interface displays a reset notice.
+
+The primary demo needs no account, API key or database. Public links refer to the existing deployment; local redesign changes are pending publication.
+
+## Local setup and verification
+
+Requires Node.js 22 and pnpm 10.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm test
+node node_modules/typescript/bin/tsc --noEmit --incremental false
+pnpm lint
+pnpm build
+```
+
+Open `http://localhost:3000/en/app`. Recorded validation covers tests, lint, TypeScript and production builds. See [command results](docs/quality/decision-lab-verification.json) and [browser component checks](docs/quality/decision-lab-browser.json). The new browser checks exercise real React components and production CSS with controlled locale navigation; they do not certify Next routes or public deployment.
 
 ## Architecture
 
-```
-lib/escaneo/                # canonical core (TypeScript, tested)
-  extract.ts                #   parse field lines from the OCR text layer
-  validate.ts               #   format + checksum + calendar cross-validation
-  benchmark.ts              #   raw accuracy · recall · false positives
-  demo.ts                   #   wires documents into every number
-  data/                     #   documents.json (clean + OCR text with errors)
-  fixtures/                 #   benchmark.json (pinned metrics)
-backend/                    # same math in Python + pytest (authoritative)
-  src/escaneo/              #   extract.py · validate.py · benchmark.py
-  tests/                    #   pinned to tests/fixtures/{documents,benchmark}.json
-app/                        # Next.js landing + demo dashboard (Vercel, demo mode)
-```
+- `app/[lang]/`: localized browser experience.
+- `lib/experience/`: typed local adapter, validation and run traces.
+- `design-system/`: shared visual tokens, locale controls and execution/replay presentation.
+- `app/api/`: optional server integrations; the primary demo does not require them.
 
-The OCR layer is the committed `ocrText` (a text layer with deterministic, injected errors); the
-extractor and validator are the real, shared logic. Checksums (Luhn on `account`, check digit on
-`reference`) are the cross-validation that catches a corruption which preserves the format —
-a regex alone would miss it.
+Technology: Next.js 16, TypeScript, Python, Vitest, pytest, Tailwind CSS v4.
 
-## Design decisions & tradeoffs
+## Evidence and limitations
 
-1. **Cross-validation means checksums, not just regex.** A format check catches `5`→`S`; a Luhn
-   checksum catches a digit swapped for another digit. The demo includes both kinds of error to
-   make the distinction visible.
-2. **The OCR is a committed text layer, not a real image→text model.** A real OCR engine is a
-   non-deterministic dependency; the demo pins the errors so the *validation* is the star.
-   Production swaps a real OCR behind the same `ocrText` contract.
-3. **Errors are per-field, not per-document.** A single corrupt field doesn't invalidate the
-   whole document — the validator flags the field, so downstream can route for manual review
-   instead of discarding the entire scan.
+A spotlight scans receipt fields and marks failures.
 
-## What did not work
+Raw text, extracted values and validation; flagged does not mean corrected.
 
-- **Format-preserving corruption is the hard case.** A `5`→`S` is easy; a `1`→`7` in a free-text
-  field with no checksum is undetectable without a cross-field constraint. The demo's `account`
-  and `reference` carry checksums precisely to catch that class, and documents it as the boundary.
-- **The synthetic OCR errors are single-character confusions.** Real OCR also drops characters,
-  merges words, and mis-segments lines; the demo isolates the *validation* layer rather than the
-  full noise model.
+Preserves the source value when a check fails.
 
-## Run it
+**Limits:** Only supplied local checks run. These portfolio prototypes do not claim measured production impact.
 
-```bash
-# frontend demo + TS tests
-pnpm install && pnpm dev      # http://localhost:3000
-pnpm test                     # 11 vitest tests
+Inputs use fictional or anonymized examples. Optional live integrations require their own credentials and operational setup. Secrets belong in the configured secret manager, never in local secret files or Git. Use the existing `infisical run -- <command>` workflow when live integration is needed. This repository does not publish or deploy automatically as part of the local demo.
 
-# backend (authoritative math) — Python 3.12+
-cd backend && uv sync --extra dev && uv run pytest   # 5 tests, pinned fixtures
-```
-
-## Stack
-
-Next.js 16 · TypeScript · Vitest · Tailwind v4 · Python 3.13 · pytest
+![Actual English demo capture](docs/images/demo.png)

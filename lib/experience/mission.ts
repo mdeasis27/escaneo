@@ -1,10 +1,12 @@
 import documentsRaw from "@/lib/escaneo/data/documents.json";
 import { documentOutcomes } from "@/lib/escaneo/benchmark";
 import { CHECKS } from "@/lib/escaneo/validate";
-import type { Document } from "@/lib/escaneo/types";
+import type { Document, Field } from "@/lib/escaneo/types";
 
 export type ReceiptStatus = "served" | "rerouted" | "lost";
-export type CheckedReceipt = { id: string; status: ReceiptStatus };
+export type Check = (typeof CHECKS)[number];
+/** `field` is the misread field, or the amount when the scanner read everything right. */
+export type CheckedReceipt = { id: string; status: ReceiptStatus; field: Field; read: string; clean: string; caughtBy: Check | null };
 export type MissionInput = { level: number };
 export type MissionResult = { items: CheckedReceipt[]; slipped: number; comparison: { mine: number; all: number } };
 type Event = { id: string; step: number; kind: string; messageKey: string; timestampMs: number; evidenceIds?: string[] };
@@ -14,7 +16,12 @@ const DOCS = documentsRaw.documents as Document[];
 
 /** The 12 receipts through the first `level` checks: accepted clean, held, or a broken one accepted. A clean receipt held counts as held. */
 export function checkReceipts(level: number): CheckedReceipt[] {
-  return documentOutcomes(DOCS, level).map(o => ({ id: o.id, status: o.status === "served" ? "served" : o.status === "lost" ? "lost" : "rerouted" }));
+  return documentOutcomes(DOCS, level).map((o, i) => ({
+    id: o.id,
+    status: o.status === "served" ? "served" : o.status === "lost" ? "lost" : "rerouted",
+    ...(o.misread ?? { field: "amount", read: DOCS[i].clean.amount, clean: DOCS[i].clean.amount }),
+    caughtBy: o.caughtBy,
+  }));
 }
 
 const slippedIn = (items: CheckedReceipt[]) => items.filter(i => i.status === "lost").length;

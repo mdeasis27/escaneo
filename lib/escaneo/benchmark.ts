@@ -4,8 +4,10 @@
 // they never reach downstream. Mirrors backend/src/escaneo/benchmark.py.
 
 import { extractFields } from "./extract";
-import { FIELDS, type BenchmarkResult, type Document } from "./types";
-import { validateFields } from "./validate";
+import { FIELDS, type BenchmarkResult, type Document, type Field } from "./types";
+import { CHECKS, validateFields } from "./validate";
+
+type Check = (typeof CHECKS)[number];
 
 function rate(a: number, b: number): number {
   return b === 0 ? 0 : a / b;
@@ -50,13 +52,23 @@ export function benchmark(documents: readonly Document[]): BenchmarkResult {
 }
 
 export type DocumentStatus = "served" | "held" | "lost" | "false-hold";
+export type Misread = { field: Field; read: string; clean: string };
+export type DocumentOutcome = { id: string; status: DocumentStatus; misread: Misread | null; caughtBy: Check | null };
 
-/** Per receipt at a given check level: clean and accepted, broken and held, broken and accepted, or clean but held. */
-export function documentOutcomes(documents: readonly Document[], level?: number): { id: string; status: DocumentStatus }[] {
+/** Per receipt at a given check level: clean and accepted, broken and held, broken and accepted, or clean but held.
+ *  Also the first misread field and the first check (in CHECKS order) that holds the receipt. */
+export function documentOutcomes(documents: readonly Document[], level: number = CHECKS.length): DocumentOutcome[] {
   return documents.map((doc) => {
     const extracted = extractFields(doc.ocrText);
-    const broken = FIELDS.some((field) => extracted[field] !== doc.clean[field]);
+    const field = FIELDS.find((f) => extracted[f] !== doc.clean[f]);
     const held = !validateFields(extracted, level).ok;
-    return { id: doc.id, status: broken ? (held ? "held" : "lost") : held ? "false-hold" : "served" };
+    let caughtBy: Check | null = null;
+    for (let l = 1; l <= level && held && !caughtBy; l++) if (!validateFields(extracted, l).ok) caughtBy = CHECKS[l - 1];
+    return {
+      id: doc.id,
+      status: field ? (held ? "held" : "lost") : held ? "false-hold" : "served",
+      misread: field ? { field, read: extracted[field], clean: doc.clean[field] } : null,
+      caughtBy,
+    };
   });
 }

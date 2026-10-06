@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .extract import extract_fields
-from .validate import validate_fields
+from .validate import CHECKS, validate_fields
 
 FIELDS = ["reference", "amount", "currency", "date", "account"]
 
@@ -50,13 +50,17 @@ def benchmark(documents: list[dict]) -> dict:
 
 
 def document_outcomes(documents: list[dict], level: int | None = None) -> list[dict]:
-    """Per receipt at a check level: served, held, lost (broken but accepted) or false-hold."""
+    """Per receipt at a check level: served, held, lost (broken but accepted) or false-hold,
+    plus the first misread field and the first check (in CHECKS order) that holds the receipt."""
+    if level is None:
+        level = len(CHECKS)
     out = []
     for doc in documents:
         extracted = extract_fields(doc["ocrText"])
-        broken = any(extracted[field] != doc["clean"][field] for field in FIELDS)
-        verdict = validate_fields(extracted) if level is None else validate_fields(extracted, level)
-        held = not verdict["ok"]
-        status = ("held" if held else "lost") if broken else ("false-hold" if held else "served")
-        out.append({"id": doc["id"], "status": status})
+        field = next((f for f in FIELDS if extracted[f] != doc["clean"][f]), None)
+        held = not validate_fields(extracted, level)["ok"]
+        caught_by = next((CHECKS[l - 1] for l in range(1, level + 1) if not validate_fields(extracted, l)["ok"]), None) if held else None
+        status = ("held" if held else "lost") if field else ("false-hold" if held else "served")
+        misread = {"field": field, "read": extracted[field], "clean": doc["clean"][field]} if field else None
+        out.append({"id": doc["id"], "status": status, "misread": misread, "caughtBy": caught_by})
     return out

@@ -29,3 +29,11 @@ it("runs the mission against all five checks, reveals in groups and stops when c
   const c = new AbortController(); c.abort();
   await expect(runMission({ level: 2 }, c.signal, () => {})).rejects.toThrow();
 });
+
+it("each receipt carries the field the scanner misread (or its amount) and the check that caught it", () => {
+  const items = checkReceipts(2);
+  expect(items[0]).toEqual({ id: "d01", status: "served", field: "amount", read: "1234.56", clean: "1234.56", caughtBy: null });
+  expect(items[6]).toEqual({ id: "d07", status: "rerouted", field: "amount", read: "1234.S6", clean: "1234.56", caughtBy: "format" });
+  expect(items[8]).toMatchObject({ id: "d09", status: "lost", field: "date", read: "2024-13-23", caughtBy: null });
+  expect(checkReceipts(3)[8].caughtBy).toBe("calendar");
+});

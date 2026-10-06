@@ -83,3 +83,19 @@
     font-weight: 600;
   }
 }
+
+/* Escaneo scene: each receipt goes pile -> lamp -> tray or till (positions come from CSS variables). */
+@media (prefers-reduced-motion: no-preference) {
+  .escaneo-pass { animation: escaneo-pass 600ms ease-in-out both; }
+  .escaneo-pass .escaneo-full { animation: escaneo-full 600ms linear both; animation-delay: inherit; }
+  .escaneo-pass .escaneo-landed { animation: escaneo-landed 600ms linear both; animation-delay: inherit; }
+  .escaneo-lamp { animation: escaneo-lamp 1100ms ease-in-out both; }
+}
+@keyframes escaneo-pass {
+  0% { transform: var(--pile); }
+  35%, 62% { transform: var(--lamp); }
+  100% { transform: var(--slot); }
+}
+@keyframes escaneo-full { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes escaneo-landed { 0%, 80% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes escaneo-lamp { 0% { opacity: .3; } 15%, 85% { opacity: 1; } 100% { opacity: .3; } }

@@ -93,5 +93,123 @@
       "held",
       "held"
     ]
+  },
+  "misreads": {
+    "d07": {
+      "field": "amount",
+      "read": "1234.S6",
+      "clean": "1234.56"
+    },
+    "d08": {
+      "field": "account",
+      "read": "40000012352I",
+      "clean": "400000123523"
+    },
+    "d09": {
+      "field": "date",
+      "read": "2024-13-23",
+      "clean": "2024-03-23"
+    },
+    "d10": {
+      "field": "reference",
+      "read": "REF-20253S",
+      "clean": "REF-202532"
+    },
+    "d11": {
+      "field": "amount",
+      "read": "987.3O",
+      "clean": "987.30"
+    },
+    "d12": {
+      "field": "account",
+      "read": "40000012356G",
+      "clean": "400000123564"
+    }
+  },
+  "caughtByLevel": {
+    "0": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "1": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "format",
+      "format",
+      null,
+      "format",
+      "format",
+      "format"
+    ],
+    "2": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "format",
+      "format",
+      null,
+      "format",
+      "format",
+      "format"
+    ],
+    "3": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "format",
+      "format",
+      "calendar",
+      "format",
+      "format",
+      "format"
+    ],
+    "4": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "format",
+      "format",
+      "calendar",
+      "format",
+      "format",
+      "format"
+    ],
+    "5": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "format",
+      "format",
+      "calendar",
+      "format",
+      "format",
+      "format"
+    ]
   }
 }

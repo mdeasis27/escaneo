@@ -68,4 +68,13 @@ describe("checks switched on in order: format, allowlist, calendar, check-digit,
   it("matches the per-level outcomes pinned in the shared fixture", () => {
     for (let level = 0; level <= 5; level++) expect(statuses(level)).toEqual((fixture as unknown as { outcomesByLevel: Record<string, string[]> }).outcomesByLevel[String(level)]);
   });
+
+  it("names the misread field and the first check that caught it, as pinned in the shared fixture", () => {
+    const pinned = fixture as unknown as { misreads: Record<string, { field: string; read: string; clean: string }>; caughtByLevel: Record<string, (string | null)[]> };
+    for (let level = 0; level <= 5; level++) {
+      const outcomes = documentOutcomes(docs, level);
+      expect(outcomes.map((o) => o.misread)).toEqual(outcomes.map((o) => pinned.misreads[o.id] ?? null));
+      expect(outcomes.map((o) => o.caughtBy)).toEqual(pinned.caughtByLevel[String(level)]);
+    }
+  });
 });

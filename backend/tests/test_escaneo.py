@@ -8,10 +8,13 @@ from escaneo.extract import extract_fields
 from escaneo.validate import luhn_valid, valid_date, validate_fields
 
 FIXTURES = Path(__file__).parent / "fixtures"
+# One fixture shared with vitest: lib/escaneo/benchmark.test.ts reads the same file.
+SHARED_FIXTURE = Path(__file__).resolve().parents[2] / "lib" / "escaneo" / "fixtures" / "benchmark.json"
 
 
 def _load(name: str):
-    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    path = SHARED_FIXTURE if name == "benchmark.json" else FIXTURES / name
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _docs():
@@ -73,6 +76,16 @@ def test_check_levels_match_the_shared_fixture():
         statuses = [o["status"] for o in document_outcomes(docs, level)]
         assert statuses == fixture["outcomesByLevel"][str(level)]
     assert validate_fields({"reference": "x", "amount": "x", "currency": "x", "date": "x", "account": "x"}, 0)["ok"]
+
+
+def test_outcomes_name_the_misread_field_and_the_check_that_caught_it():
+    from escaneo.benchmark import document_outcomes
+
+    fixture = _load("benchmark.json")
+    for level in range(6):
+        outcomes = document_outcomes(_docs(), level)
+        assert [o["misread"] for o in outcomes] == [fixture["misreads"].get(o["id"]) for o in outcomes]
+        assert [o["caughtBy"] for o in outcomes] == fixture["caughtByLevel"][str(level)]
 
 
 def test_validate_fields_treats_none_level_as_all_checks():

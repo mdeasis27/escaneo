@@ -1,6 +1,7 @@
 import type { Heading } from "@/design-system/demo/project-story";
 
-type NodeCopy = { name: string; sub: string; analogy: string };
+type BinCopy = { name: string; sub: string };
+type FieldNames = { reference: string; amount: string; currency: string; date: string; account: string };
 
 export interface EscaneoStory {
   name: string;
@@ -13,7 +14,7 @@ export interface EscaneoStory {
   fit: { heading: Heading; worthLabel: string; worth: string; notLabel: string; not: string };
   proves: { heading: Heading; text: string };
   engineers: { summary: string; points: string[]; repoLabel: string };
-  scene: { title: string; caption: string; statusLabels: { active: string; danger: string; success: string }; tapeLabel: string; nodes: { receipts: NodeCopy; cashier: NodeCopy; accepted: NodeCopy; held: NodeCopy }; tape: { served: string; rerouted: string; lost: string }; slippedOf: (n: number) => string };
+  scene: { title: string; caption: string; lamp: string; checking: (on: number) => string; checks: string[]; receipt: string; fields: FieldNames; bins: { pile: BinCopy; held: BinCopy; till: BinCopy }; heldBy: (check: string) => string; slipped: string; misreadsLabel: string; summary: (level: number, served: number, held: number, lost: number) => string; tapeLabel: string; tape: { served: string; rerouted: string; lost: string }; slippedOf: (n: number) => string };
 }
 
 export const STORY: Record<"en" | "es", EscaneoStory> = {
@@ -90,15 +91,22 @@ export const STORY: Record<"en" | "es", EscaneoStory> = {
     },
     scene: {
       title: "What the cashier did with each receipt",
-      caption: "Watch the receipts come in four at a time.",
-      statusLabels: { active: "checking", success: "in use", danger: "accepted errors" },
-      tapeLabel: "Twelve scanned receipts, in order",
-      nodes: {
-        receipts: { name: "Receipts", sub: "12 scanned", analogy: "the banknotes" },
-        cashier: { name: "Checks", sub: "before accepting", analogy: "the cashier" },
-        accepted: { name: "Accepted", sub: "goes to payment", analogy: "the till" },
-        held: { name: "Held", sub: "a person reviews", analogy: "set aside" },
+      caption: "Each receipt passes under the lamp, four at a time. Underlined characters are the ones the scanner misread.",
+      lamp: "held to the light",
+      checking: (on) => `Checks on: ${on} of 5`,
+      checks: ["format", "currency", "date", "ref. digit", "account digit"],
+      receipt: "receipt",
+      fields: { reference: "ref.", amount: "amount", currency: "currency", date: "date", account: "account" },
+      bins: {
+        pile: { name: "Receipts", sub: "12 scanned" },
+        held: { name: "Set aside", sub: "a person reviews" },
+        till: { name: "The till", sub: "goes to payment" },
       },
+      heldBy: (check) => `set aside by the ${check} check`,
+      slipped: "slipped into the till",
+      misreadsLabel: "Receipts the scanner misread",
+      summary: (level, served, held, lost) => `Twelve receipts pass under the lamp four at a time. With ${level} ${level === 1 ? "check" : "checks"}, ${served} correct ones go to the till, ${held} with errors are set aside and ${lost} with errors ${lost === 1 ? "slips" : "slip"} into the till.`,
+      tapeLabel: "Twelve scanned receipts, in order",
       tape: { served: "correct and accepted", rerouted: "held for review", lost: "error accepted" },
       slippedOf: (n) => `Receipts with errors accepted: ${n} of 6`,
     },
@@ -176,15 +184,22 @@ export const STORY: Record<"en" | "es", EscaneoStory> = {
     },
     scene: {
       title: "Lo que hizo el cajero con cada recibo",
-      caption: "Mira cómo llegan los recibos de cuatro en cuatro.",
-      statusLabels: { active: "revisando", success: "en uso", danger: "aceptó errores" },
-      tapeLabel: "Doce recibos escaneados, en orden",
-      nodes: {
-        receipts: { name: "Recibos", sub: "12 escaneados", analogy: "los billetes" },
-        cashier: { name: "Revisiones", sub: "antes de aceptar", analogy: "el cajero" },
-        accepted: { name: "Aceptado", sub: "va a pago", analogy: "la caja" },
-        held: { name: "Detenido", sub: "lo revisa una persona", analogy: "apartado" },
+      caption: "Cada recibo pasa bajo la lámpara, de cuatro en cuatro. Lo subrayado es lo que el escáner leyó mal.",
+      lamp: "a contraluz",
+      checking: (on) => `Revisiones encendidas: ${on} de 5`,
+      checks: ["formato", "moneda", "fecha", "dígito ref.", "dígito cuenta"],
+      receipt: "recibo",
+      fields: { reference: "ref.", amount: "monto", currency: "moneda", date: "fecha", account: "cuenta" },
+      bins: {
+        pile: { name: "Recibos", sub: "12 escaneados" },
+        held: { name: "Apartado", sub: "lo revisa una persona" },
+        till: { name: "La caja", sub: "va a pago" },
       },
+      heldBy: (check) => `apartado por la revisión de ${check}`,
+      slipped: "se coló a la caja",
+      misreadsLabel: "Recibos que el escáner leyó mal",
+      summary: (level, served, held, lost) => `Doce recibos pasan bajo la lámpara de cuatro en cuatro. Con ${level} ${level === 1 ? "revisión" : "revisiones"}, ${served} correctos van a la caja, ${held} con error quedan apartados y ${lost} con error ${lost === 1 ? "se cuela" : "se cuelan"} a la caja.`,
+      tapeLabel: "Doce recibos escaneados, en orden",
       tape: { served: "correcto y aceptado", rerouted: "detenido para revisión", lost: "error aceptado" },
       slippedOf: (n) => `Recibos con error aceptados: ${n} de 6`,
     },
